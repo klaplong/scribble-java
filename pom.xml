@@ -155,11 +155,11 @@
 	</dependencyManagement>
 
 	<build>
-		<!-- This section defines the default plugin settings inherited by child 
+		<!-- This section defines the default plugin settings inherited by child
 			projects. -->
 		<pluginManagement>
 			<plugins>
-				<!-- Fixes how test resources of a project can be used in projects dependent 
+				<!-- Fixes how test resources of a project can be used in projects dependent
 					on it -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -211,6 +211,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
+                <version>${version.maven-source-plugin}</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
