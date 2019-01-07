@@ -37,7 +37,7 @@ public class CLArgParser
 	public static final String AUT_FLAG = "-aut";
 	public static final String NO_VALIDATION_FLAG = "-novalid";
 	public static final String INLINE_MAIN_MOD_FLAG = "-inline";
-	
+
 	// Non-unique flags
 	public static final String PROJECT_FLAG = "-project";
 	public static final String EFSM_FLAG = "-fsm";
@@ -50,10 +50,12 @@ public class CLArgParser
 	public static final String UNFAIR_SGRAPH_FLAG = "-umodel";
 	public static final String SGRAPH_PNG_FLAG = "-modelpng";
 	public static final String UNFAIR_SGRAPH_PNG_FLAG = "-umodelpng";
+	public static final String SGRAPH_CANON_FLAG = "-canon";
+	public static final String UNFAIR_SGRAPH_CANON_FLAG = "-ucanon";
 	public static final String API_GEN_FLAG = "-api";
 	public static final String SESSION_API_GEN_FLAG = "-sessapi";
 	public static final String STATECHAN_API_GEN_FLAG = "-chanapi";
-	
+
 	private static final Map<String, CLArgFlag> UNIQUE_FLAGS = new HashMap<>();
 	{
 		CLArgParser.UNIQUE_FLAGS.put(CLArgParser.JUNIT_FLAG, CLArgFlag.JUNIT);
@@ -85,6 +87,8 @@ public class CLArgParser
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_FLAG, CLArgFlag.UNFAIR_SGRAPH);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SGRAPH_PNG_FLAG, CLArgFlag.SGRAPH_PNG);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_PNG_FLAG, CLArgFlag.UNFAIR_SGRAPH_PNG);
+		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SGRAPH_CANON_FLAG, CLArgFlag.SGRAPH_CANON);
+		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_CANON_FLAG, CLArgFlag.UNFAIR_SGRAPH_CANON);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.API_GEN_FLAG, CLArgFlag.API_GEN);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SESSION_API_GEN_FLAG, CLArgFlag.SESS_API_GEN);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.STATECHAN_API_GEN_FLAG, CLArgFlag.SCHAN_API_GEN);
@@ -99,29 +103,29 @@ public class CLArgParser
 	protected final String[] args;
 
 	private final Map<CLArgFlag, String[]> parsed = new HashMap<>();
-	
+
 	public CLArgParser(String[] args)
 	{
 		this.args = args;
-		//parseArgs();  // No: constructors should not invoke overridable methods (subclass constructor not yet called)
-	}		
-	
+		//parseArgs();	// No: constructors should not invoke overridable methods (subclass constructor not yet called)
+	}
+
 	// For overriding pattern -- should be used explicitly on subclasses (cannot call overridden from constructor)
 	public final void parse() throws CommandLineException
 	{
 		parseArgs();
 	}
-	
+
 	public final Map<CLArgFlag, String[]> getArgs() throws CommandLineException
 	{
 		return this.parsed;
 	}
-	
+
 	protected boolean isFlag(String arg)
 	{
 		return CLArgParser.FLAGS.containsKey(arg);
 	}
-	
+
 	private void parseArgs() throws CommandLineException
 	{
 		for (int i = 0; i < this.args.length; i++)
@@ -146,12 +150,12 @@ public class CLArgParser
 			}
 		}
 	}
-	
+
 	private boolean isMainModuleParsed()
 	{
 		return this.parsed.containsKey(CLArgFlag.MAIN_MOD) || this.parsed.containsKey(CLArgFlag.INLINE_MAIN_MOD);
 	}
-	
+
 	// Pre: i is the index of the current flag to parse
 	// Post: i is the index of the last argument parsed -- parseArgs does the index increment to the next current flag
 	// Currently allows repeat flag decls: next overrides previous
@@ -237,6 +241,8 @@ public class CLArgParser
 			}
 			case CLArgParser.SGRAPH_FLAG:
 			case CLArgParser.UNFAIR_SGRAPH_FLAG:
+			case CLArgParser.SGRAPH_CANON_FLAG:
+			case CLArgParser.UNFAIR_SGRAPH_CANON_FLAG:
 			case CLArgParser.SESSION_API_GEN_FLAG:
 			{
 				return parseProtoArg(flag, i);
@@ -385,7 +391,7 @@ public class CLArgParser
 		concatArgs(flag, proto, png);
 		return i;
 	}
-	
+
 	private void concatArgs(CLArgFlag flag, String... toAdd)
 	{
 		String[] args = this.parsed.get(flag);

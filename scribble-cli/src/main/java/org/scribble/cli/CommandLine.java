@@ -45,7 +45,7 @@ import org.scribble.util.ScribUtil;
 
 public class CommandLine
 {
-	protected final Map<CLArgFlag, String[]> args;  // Maps each flag to list of associated argument values
+	protected final Map<CLArgFlag, String[]> args;	// Maps each flag to list of associated argument values
 
 	protected CommandLine(CLArgParser p) throws CommandLineException
 	{
@@ -221,7 +221,8 @@ public class CommandLine
 			drawEGraph(job, false, false);
 		}
 		if (this.args.containsKey(CLArgFlag.SGRAPH) || this.args.containsKey(CLArgFlag.SGRAPH_PNG)
-				|| this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_PNG))
+				|| this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_PNG)
+				|| this.args.containsKey(CLArgFlag.SGRAPH_CANON) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CANON))
 		{
 			if (job.useOldWf)
 			{
@@ -242,6 +243,14 @@ public class CommandLine
 			if (this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_PNG))
 			{
 				drawSGraph(job, false);
+			}
+			if (this.args.containsKey(CLArgFlag.SGRAPH_CANON))
+			{
+				printSGraphCanon(job, true);
+			}
+			if (this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CANON))
+			{
+				printSGraphCanon(job, false);
 			}
 		}
 	}
@@ -332,7 +341,7 @@ public class CommandLine
 		}
 		if (graph == null)
 		{
-			throw new RuntimeScribbleException("Shouldn't see this: " + fullname);  // Should be suppressed by an earlier failure
+			throw new RuntimeScribbleException("Shouldn't see this: " + fullname);	// Should be suppressed by an earlier failure
 		}
 		return graph;
 	}
@@ -363,13 +372,25 @@ public class CommandLine
 		}
 	}
 
+	private void printSGraphCanon(Job job, boolean fair) throws ScribbleException, CommandLineException
+	{
+		JobContext jcontext = job.getContext();
+		String[] args = fair ? this.args.get(CLArgFlag.SGRAPH_CANON) : this.args.get(CLArgFlag.UNFAIR_SGRAPH_CANON);
+		for (int i = 0; i < args.length; i += 1)
+		{
+			GProtocolName fullname = checkGlobalProtocolArg(jcontext, args[i]);
+			SGraph model = getSGraph(job, fullname, fair);
+			System.out.println("\n" + model.toCanonProtocol());
+		}
+	}
+
 	private static SGraph getSGraph(Job job, GProtocolName fullname, boolean fair) throws ScribbleException
 	{
 		JobContext jcontext = job.getContext();
 		SGraph model = fair ? jcontext.getSGraph(fullname) : jcontext.getUnfairSGraph(fullname);
 		if (model == null)
 		{
-			throw new RuntimeScribbleException("Shouldn't see this: " + fullname);  // Should be suppressed by an earlier failure
+			throw new RuntimeScribbleException("Shouldn't see this: " + fullname);	// Should be suppressed by an earlier failure
 		}
 		return model;
 	}
@@ -453,7 +474,7 @@ public class CommandLine
 		{
 			ScribUtil.writeToFile(tmpName, dot);
 			String[] res = ScribUtil.runProcess("dot", "-Tpng", "-o" + png, tmpName);
-			System.out.print(!res[1].isEmpty() ? res[1] : res[0]);  // already "\n" terminated
+			System.out.print(!res[1].isEmpty() ? res[1] : res[0]);	// already "\n" terminated
 		}
 		finally
 		{

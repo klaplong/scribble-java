@@ -16,7 +16,7 @@ package org.scribble.cli;
 public enum CLArgFlag
 {
 	// Unique flags
-	JUNIT,  // For internal use (JUnit test harness)
+	JUNIT,	// For internal use (JUnit test harness)
 	MAIN_MOD,
 	IMPORT_PATH,
 	VERBOSE,
@@ -45,6 +45,8 @@ public enum CLArgFlag
 	UNFAIR_SGRAPH,
 	SGRAPH_PNG,
 	UNFAIR_SGRAPH_PNG,
+	SGRAPH_CANON,
+	UNFAIR_SGRAPH_CANON,
 	API_GEN,
 	SESS_API_GEN,
 	SCHAN_API_GEN,

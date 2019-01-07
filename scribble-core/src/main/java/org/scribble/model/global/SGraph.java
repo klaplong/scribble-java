@@ -13,6 +13,7 @@
  */
 package org.scribble.model.global;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,14 +27,16 @@ import java.util.TreeMap;
 
 import org.scribble.model.MPrettyPrint;
 import org.scribble.model.global.actions.SAction;
+import org.scribble.type.Payload;
 import org.scribble.type.name.GProtocolName;
+import org.scribble.type.name.Role;
 
 public class SGraph implements MPrettyPrint
 {
 	public final GProtocolName proto;
 	//private final Map<Role, EGraph> efsms;
 	//private final boolean fair;
-	
+
 	public final SState init;
 	public Map<Integer, SState> states; // State ID -> GMState
 
@@ -48,7 +51,7 @@ public class SGraph implements MPrettyPrint
 		this.states = Collections.unmodifiableMap(states);
 		this.reach = getReachabilityMap();
 	}
-	
+
 	/*public SModel toModel()
 	{
 		return new SModel(this);
@@ -255,5 +258,145 @@ public class SGraph implements MPrettyPrint
 	public String toString()
 	{
 		return this.init.toString();
+	}
+
+	private class CanonProtocolOption
+	{
+		public final Payload type;
+		public final int next;
+
+		public CanonProtocolOption(Payload type, int next)
+		{
+			this.type = type;
+			this.next = next;
+		}
+	}
+
+	private class CanonProtocolEntry
+	{
+		public final Role from;
+		public final Role to;
+		public List<CanonProtocolOption> options;
+
+		public CanonProtocolEntry(Role from, Role to)
+		{
+			this.from = from;
+			this.to = to;
+			this.options = new ArrayList<>();
+		}
+	}
+
+	public String toCanonProtocol()
+	{
+		List<CanonProtocolEntry> entries = new ArrayList<>();
+		int initIdx = buildCanonProtocol(this.init, entries, new HashMap<>());
+
+		return toCanonProtocol(entries, initIdx, new HashSet<>(), new HashSet<>());
+	}
+
+	private String toCanonProtocol(List<CanonProtocolEntry> entries, int idx,
+			Set<Integer> path, Set<Integer> vars)
+	{
+		CanonProtocolEntry entry = entries.get(idx);
+		String out = entry.from.toString() + "->" + entry.to.toString() + ":{";
+
+		for (int i = 0; i < entry.options.size(); i ++)
+		{
+			if (i > 0)
+			{
+				out += ", ";
+			}
+
+			CanonProtocolOption option = entry.options.get(i);
+			out += i + "<" + option.type.toString() + ">.";
+
+			if (option.next == -1)
+			{
+				out += "end";
+			}
+			else if (path.contains(option.next))
+			{
+				out += "X" + option.next;
+				vars.add(option.next);
+			}
+			else
+			{
+				Set<Integer> newpath = new HashSet<>(path);
+				newpath.add(idx);
+				out += toCanonProtocol(entries, option.next, newpath, vars);
+			}
+		}
+
+		out += "}";
+
+		if (vars.contains(idx))
+		{
+			out = "mX" + idx + "." + out;
+		}
+
+		return out;
+	}
+
+	private int buildCanonProtocol(SState state,
+			List<CanonProtocolEntry> entries,
+			Map<SState, Integer> stateIdxs)
+	{
+		// Assumes the current state is not processed yet (not in stateIdxs).
+
+		List<SAction> actions = state.getAllActions();
+
+		CanonProtocolEntry entry = null;
+		int idx = -1;
+
+		// Add the current state as an entry if it has outgoing actions.
+		// This needs to be done now, because otherwise we get an infinite loop
+		// when a following state loops back here.
+		for (int i = 0; i < actions.size(); i ++)
+		{
+			SAction action = actions.get(i);
+
+			if (action.isSend())
+			{
+				entry = new CanonProtocolEntry(action.subj, action.obj);
+				break;
+			}
+		}
+
+		if (entry != null)
+		{
+			idx = entries.size();
+			entries.add(entry);
+			stateIdxs.put(state, idx);
+		}
+
+		// Follow outgoing edges.
+		for (int i = 0; i < actions.size(); i ++)
+		{
+			SAction action = actions.get(i);
+
+			SState next = state.getSuccessor(action);
+			Integer nextIdx = stateIdxs.get(next);
+
+			if (nextIdx == null)
+			{
+				nextIdx = buildCanonProtocol(next, entries, stateIdxs);
+			}
+
+			// Forward the next state's entry idx if this one has no entry.
+			if (idx == -1)
+			{
+				idx = nextIdx;
+			}
+
+			// Add send actions as option. Note that now the entry is created,
+			// since we have looked for the first send action before.
+			if (action.isSend())
+			{
+				entry.options.add(
+						new CanonProtocolOption(action.payload, nextIdx));
+			}
+		}
+
+		return idx;
 	}
 }

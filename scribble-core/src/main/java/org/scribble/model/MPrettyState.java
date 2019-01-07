@@ -29,7 +29,7 @@ public abstract class MPrettyState
 	{
 		super(labs);
 	}
-	
+
 	public String toLongString()
 	{
 		String s = "\"" + this.id + "\":[";
@@ -37,7 +37,7 @@ public abstract class MPrettyState
 		s += this.actions.stream().map((a) -> a + "=\"" + ss.next().id + "\"").collect(Collectors.joining(", "));
 		return s + "]";
 	}
-	
+
 	@Override
 	public final String toDot()
 	{
@@ -79,14 +79,14 @@ public abstract class MPrettyState
 	{
 		return getDotNodeId() + " [ " + getNodeLabel() + " ];";
 	}
-	
+
 	protected String getNodeLabel()
 	{
 		String labs = this.labs.toString();
 		//return "label=\"" + labs.substring(1, labs.length() - 1) + "\"";
 		return "label=\"" + this.id + ": " + labs.substring(1, labs.length() - 1) + "\"";  // FIXME
 	}
-	
+
 	protected String getDotNodeId()
 	{
 		return "\"" + this.id + "\"";
@@ -97,14 +97,14 @@ public abstract class MPrettyState
 	{
 		return toEdgeDot(getDotNodeId(), next.getDotNodeId(), next.getEdgeLabel(msg));  // CHECKME: next.getEdgeLabel or this.?
 	}
-	
+
 	// "this" is the dest node of the edge
 	// Override to change edge drawing to "this" as dest
 	protected String getEdgeLabel(A msg)
 	{
 		return "label=\"" + msg + "\"";
 	}
-	
+
 	@Override
 	public final String toAut()
 	{
