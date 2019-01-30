@@ -19,7 +19,7 @@
 #
 #  - ANTLR:
 #    Set $ANTLR (below) to the location of the ANTLR 3 runtime jar,
-#    or add the jar to  $DIR/$LIB  assuming $DIR is the scribble-java root directory. 
+#    or add the jar to  $DIR/$LIB  assuming $DIR is the scribble-java root directory.
 #    (This script looks for ANTLR in those locations.)
 #
 
@@ -42,9 +42,9 @@ LIB=lib
 usage() {
   echo Usage:  'scribblec.sh [option]... <SCRFILE> [option]...'
   cat <<EOF
-  
- <SCRFILE>     Source Scribble module (.scr file) 
-  
+
+ <SCRFILE>     Source Scribble module (.scr file)
+
 Options:
   -h, --help                 Show this info and exit$
   -V                         Scribble debug info$
@@ -61,7 +61,7 @@ Options:
   -aut                                           Output as aut (instead of dot)
   -fsmpng <simple global protocol name> <role> <output file>
           Draw default Endpoint FSM as png (via dot)
-  -vfsm, -ufsm <simple global proto name> <role>   
+  -vfsm, -ufsm <simple global proto name> <role>
   -vfsmpng, -ufsmpng <simple global proto name> <role> <output file>
           Output the EFSM used in validation (or the "unfair" variant)
   -minlts
@@ -70,10 +70,16 @@ Options:
 
 
   -model <simple global protocol name>          Generate global model
-  -modelpng <simple global protocol name> <role> <output file>
+  -modelpng <simple global protocol name> <output file>
           Draw global model as png (requires dot)
   -fair                                         Assume fair output choices
   -umodel, -umodelpng (with appropriate args)   "Unfair" variant
+
+  -canon <simple global protocol name>
+          Generate canonical global protocol type
+  -cc0templ <simple global protocol name>
+          Generate CC0 code template for binary session type analysis
+  -ucanon, -ucc0templ (with appropriate args)   "Unfair" variants
 
 
   -api <simple global protocol name> <role>     Generate Java Endpoint API

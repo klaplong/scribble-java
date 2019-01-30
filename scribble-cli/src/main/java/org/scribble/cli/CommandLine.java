@@ -222,7 +222,8 @@ public class CommandLine
 		}
 		if (this.args.containsKey(CLArgFlag.SGRAPH) || this.args.containsKey(CLArgFlag.SGRAPH_PNG)
 				|| this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_PNG)
-				|| this.args.containsKey(CLArgFlag.SGRAPH_CANON) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CANON))
+				|| this.args.containsKey(CLArgFlag.SGRAPH_CANON) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CANON)
+				|| this.args.containsKey(CLArgFlag.SGRAPH_CC0TEMPL) || this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CC0TEMPL))
 		{
 			if (job.useOldWf)
 			{
@@ -251,6 +252,14 @@ public class CommandLine
 			if (this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CANON))
 			{
 				printSGraphCanon(job, false);
+			}
+			if (this.args.containsKey(CLArgFlag.SGRAPH_CC0TEMPL))
+			{
+				printSGraphCC0Templ(job, true);
+			}
+			if (this.args.containsKey(CLArgFlag.UNFAIR_SGRAPH_CC0TEMPL))
+			{
+				printSGraphCC0Templ(job, false);
 			}
 		}
 	}
@@ -381,6 +390,18 @@ public class CommandLine
 			GProtocolName fullname = checkGlobalProtocolArg(jcontext, args[i]);
 			SGraph model = getSGraph(job, fullname, fair);
 			System.out.println("\n" + model.toCanonProtocol());
+		}
+	}
+
+	private void printSGraphCC0Templ(Job job, boolean fair) throws ScribbleException, CommandLineException
+	{
+		JobContext jcontext = job.getContext();
+		String[] args = fair ? this.args.get(CLArgFlag.SGRAPH_CC0TEMPL) : this.args.get(CLArgFlag.UNFAIR_SGRAPH_CC0TEMPL);
+		for (int i = 0; i < args.length; i += 1)
+		{
+			GProtocolName fullname = checkGlobalProtocolArg(jcontext, args[i]);
+			SGraph model = getSGraph(job, fullname, fair);
+			System.out.println("\n" + model.toCC0Templ());
 		}
 	}
 

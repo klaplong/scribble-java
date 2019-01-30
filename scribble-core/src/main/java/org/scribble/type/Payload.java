@@ -23,14 +23,14 @@ import org.scribble.type.name.PayloadElemType;
 public class Payload
 {
 	public static final Payload EMPTY_PAYLOAD = new Payload(Collections.emptyList());
-	
+
 	public final List<PayloadElemType<? extends PayloadTypeKind>> elems;
-	
+
 	public Payload(List<PayloadElemType<? extends PayloadTypeKind>> payload)
 	{
 		this.elems = payload;
 	}
-	
+
 	public boolean isEmpty()
 	{
 		return this.elems.isEmpty();
@@ -57,22 +57,40 @@ public class Payload
 		}
 		return this.elems.equals(((Payload) o).elems);
 	}
-	
+
 	@Override
 	public String toString()
 	{
+		return this.toString(true);
+	}
+
+	public String toString(boolean parens)
+	{
 		if (this.elems.isEmpty())
 		{
-			return "()";
+			if (parens)
+			{
+				return "()";
+			}
+			return "";
 		}
-		String payload = "(" + this.elems.get(0);
+		String payload = "";
+		if (parens)
+		{
+			payload += "(";
+		}
+		payload += this.elems.get(0);
 		for (PayloadElemType<? extends Kind> pt : this.elems.subList(1, this.elems.size()))
 		{
 			payload+= ", " + pt;
 		}
-		return payload + ")";
+		if (parens)
+		{
+			payload += ")";
+		}
+		return payload;
 	}
-	
+
 	/*@Override
 	public boolean isParameter()
 	{

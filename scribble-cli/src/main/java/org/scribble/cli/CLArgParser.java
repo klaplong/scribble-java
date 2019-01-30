@@ -52,6 +52,8 @@ public class CLArgParser
 	public static final String UNFAIR_SGRAPH_PNG_FLAG = "-umodelpng";
 	public static final String SGRAPH_CANON_FLAG = "-canon";
 	public static final String UNFAIR_SGRAPH_CANON_FLAG = "-ucanon";
+	public static final String SGRAPH_CC0TEMPL_FLAG = "-cc0templ";
+	public static final String UNFAIR_SGRAPH_CC0TEMPL_FLAG = "-ucc0templ";
 	public static final String API_GEN_FLAG = "-api";
 	public static final String SESSION_API_GEN_FLAG = "-sessapi";
 	public static final String STATECHAN_API_GEN_FLAG = "-chanapi";
@@ -89,6 +91,8 @@ public class CLArgParser
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_PNG_FLAG, CLArgFlag.UNFAIR_SGRAPH_PNG);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SGRAPH_CANON_FLAG, CLArgFlag.SGRAPH_CANON);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_CANON_FLAG, CLArgFlag.UNFAIR_SGRAPH_CANON);
+		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SGRAPH_CC0TEMPL_FLAG, CLArgFlag.SGRAPH_CC0TEMPL);
+		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.UNFAIR_SGRAPH_CC0TEMPL_FLAG, CLArgFlag.UNFAIR_SGRAPH_CC0TEMPL);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.API_GEN_FLAG, CLArgFlag.API_GEN);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.SESSION_API_GEN_FLAG, CLArgFlag.SESS_API_GEN);
 		CLArgParser.NON_UNIQUE_FLAGS.put(CLArgParser.STATECHAN_API_GEN_FLAG, CLArgFlag.SCHAN_API_GEN);
@@ -243,6 +247,8 @@ public class CLArgParser
 			case CLArgParser.UNFAIR_SGRAPH_FLAG:
 			case CLArgParser.SGRAPH_CANON_FLAG:
 			case CLArgParser.UNFAIR_SGRAPH_CANON_FLAG:
+			case CLArgParser.SGRAPH_CC0TEMPL_FLAG:
+			case CLArgParser.UNFAIR_SGRAPH_CC0TEMPL_FLAG:
 			case CLArgParser.SESSION_API_GEN_FLAG:
 			{
 				return parseProtoArg(flag, i);

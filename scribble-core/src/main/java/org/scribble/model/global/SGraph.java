@@ -242,58 +242,6 @@ public class SGraph implements MPrettyPrint
 		return Collections.unmodifiableMap(res);
 	}
 
-	@Override
-	public String toDot()
-	{
-		return this.init.toDot();
-	}
-
-	@Override
-	public String toAut()
-	{
-		return this.init.toAut();
-	}
-
-	@Override
-	public String toString()
-	{
-		return this.init.toString();
-	}
-
-	private class CanonProtocolOption
-	{
-		public final Payload type;
-		public final int next;
-
-		public CanonProtocolOption(Payload type, int next)
-		{
-			this.type = type;
-			this.next = next;
-		}
-	}
-
-	private class CanonProtocolEntry
-	{
-		public final Role from;
-		public final Role to;
-		public List<CanonProtocolOption> options;
-
-		public CanonProtocolEntry(Role from, Role to)
-		{
-			this.from = from;
-			this.to = to;
-			this.options = new ArrayList<>();
-		}
-	}
-
-	public String toCanonProtocol()
-	{
-		List<CanonProtocolEntry> entries = new ArrayList<>();
-		int initIdx = buildCanonProtocol(this.init, entries, new HashMap<>());
-
-		return toCanonProtocol(entries, initIdx, new HashSet<>(), new HashSet<>());
-	}
-
 	private String toCanonProtocol(List<CanonProtocolEntry> entries, int idx,
 			Set<Integer> path, Set<Integer> vars)
 	{
@@ -308,7 +256,7 @@ public class SGraph implements MPrettyPrint
 			}
 
 			CanonProtocolOption option = entry.options.get(i);
-			out += i + "<" + option.type.toString() + ">.";
+			out += i + "<" + option.type + ">.";
 
 			if (option.next == -1)
 			{
@@ -335,6 +283,30 @@ public class SGraph implements MPrettyPrint
 		}
 
 		return out;
+	}
+
+	private Set<String> canonToRoleStrs(
+			List<CanonProtocolEntry> entries, int idx,
+			Set<Integer> visited) {
+		Set<String> myRoleStrings = new HashSet<>();
+		CanonProtocolEntry entry = entries.get(idx);
+
+		myRoleStrings.add(entry.from.toString());
+		myRoleStrings.add(entry.to.toString());
+
+		for (int i = 0; i < entry.options.size(); i ++)
+		{
+			if (visited.contains(i))
+			{
+				continue;
+			}
+			visited.add(i);
+
+			myRoleStrings.addAll(
+				canonToRoleStrs(entries, entry.options.get(i).next, visited));
+		}
+
+		return myRoleStrings;
 	}
 
 	private int buildCanonProtocol(SState state,
@@ -398,5 +370,442 @@ public class SGraph implements MPrettyPrint
 		}
 
 		return idx;
+	}
+
+	private Pair<Integer,Integer> buildCC0Templ(
+			List<CanonProtocolEntry> entries,
+			int idx, // current entry idx.
+			String[] roles, // we only need the names of the roles.
+			String argStr, // for recursive calls.
+			Map<Integer,Integer> path, // which graph idxs were assigned
+									   // what medium nr.
+			Map<String, Map<Integer,Integer>> idxTypes, // role type nrs per idx.
+			Map<String,Integer> nrsOfTypes, // nr of types per role.
+			Map<String,Integer> nextTypes, // what type nr follows.
+			Map<String,Map<Integer,LineOfCode>> typedefs, // per role & type.
+			Map<String,Map<Integer,List<LineOfCode>>> choices, // per role & type.
+			Map<Integer,List<LineOfCode>> mediums, // per type.
+			Map<Integer,LineOfCode> mediumDecs, // medium declarations.
+			int nrOfVars, int nrOfMediums)
+	{
+		CanonProtocolEntry entry = entries.get(idx);
+		int mediumNr = nrOfMediums ++;
+
+		int fromTypeNr = nrsOfTypes.get(entry.fromStr);
+		int toTypeNr = nrsOfTypes.get(entry.toStr);
+
+		idxTypes.get(entry.fromStr).put(idx, fromTypeNr);
+		idxTypes.get(entry.toStr).put(idx, toTypeNr);
+
+		LineOfCode typedefFrom = new LineOfCode(
+				String.format("typedef <!choice c%s_%d> t%1$s_%2$d;",
+					entry.fromStr, fromTypeNr), 0);
+		typedefs.get(entry.fromStr).put(fromTypeNr, typedefFrom);
+
+		List<LineOfCode> choiceFrom = new ArrayList<>();
+		choices.get(entry.fromStr).put(fromTypeNr, choiceFrom);
+
+		LineOfCode typedefTo = new LineOfCode(
+				String.format("typedef <?choice c%s_%d> t%1$s_%2$d;",
+					entry.toStr, toTypeNr), 0);
+		typedefs.get(entry.toStr).put(toTypeNr, typedefTo);
+		choiceFrom.add(new LineOfCode(
+				String.format("choice c%s_%d {", entry.fromStr, fromTypeNr),
+				0));
+
+		List<LineOfCode> choiceTo = new ArrayList<>();
+		choices.get(entry.toStr).put(toTypeNr, choiceTo);
+		choiceTo.add(new LineOfCode(
+				String.format("choice c%s_%d {", entry.toStr, toTypeNr), 0));
+
+		List<LineOfCode> medium = new ArrayList<>();
+		mediums.put(mediumNr, medium);
+
+		// Because the types of non-senders/-recipients are the same across the
+		// following branches, we can just use the results from the last branch
+		// followed.
+		Map<String,Integer> newNrsOfTypes = null;
+
+		// Store the current nr of types (current type nr) of each role to
+		// generate the parameter list later.
+		Map<String,Integer> nrsOfTypesBeforeRec = new HashMap<>(nrsOfTypes);
+
+		// Only update the nr of types of the sender and recipient after
+		// generating the parameters.
+		nrsOfTypes.put(entry.fromStr, fromTypeNr+1);
+		nrsOfTypes.put(entry.toStr, toTypeNr+1);
+
+		medium.add(new LineOfCode(
+				String.format("switch ($%s) {", entry.fromStr), 1));
+
+		for (int i = 0; i < entry.options.size(); i ++)
+		{
+			CanonProtocolOption opt = entry.options.get(i);
+
+			medium.add(new LineOfCode(
+					String.format("case l%s_%d_%d:",
+						entry.fromStr, fromTypeNr, i), 1));
+			// Receive value.
+			medium.add(new LineOfCode(
+					String.format("%s v%d = recv($%s);",
+						opt.type, nrOfVars, entry.fromStr), 2));
+			// Select at recipient.
+			medium.add(new LineOfCode(
+					String.format("$%s.l%1$s_%d_%d;",
+						entry.toStr, toTypeNr, i), 2));
+			// Send value.
+			medium.add(new LineOfCode(
+					String.format("send($%s, v%d);",
+						entry.toStr, nrOfVars ++), 2));
+
+			if (opt.next == -1)
+			{
+				for (int j = 0; j < roles.length; j ++)
+				{
+					medium.add(new LineOfCode(
+							String.format("wait($%s);", roles[j]), 2));
+				}
+
+				choiceFrom.add(new LineOfCode(
+						String.format("<!%s;> l%s_%d_%d;",
+							opt.type, entry.fromStr, fromTypeNr, i), 1));
+				choiceTo.add(new LineOfCode(
+						String.format("<?%s;> l%s_%d_%d;",
+							opt.type, entry.toStr, toTypeNr, i), 1));
+			}
+
+			else if (path.containsKey(opt.next))
+			{
+				medium.add(new LineOfCode(
+						String.format("medium%d(%s);",
+							path.get(opt.next), argStr), 2));
+
+				choiceFrom.add(new LineOfCode(
+						String.format("<!%s;t%s_%d> l%2$s_%d_%d;",
+							opt.type, entry.fromStr,
+							idxTypes.get(entry.fromStr).get(opt.next),
+							fromTypeNr, i), 1));
+				choiceTo.add(new LineOfCode(
+						String.format("<?%s;t%s_%d> l%2$s_%d_%d;",
+							opt.type, entry.toStr,
+							idxTypes.get(entry.toStr).get(opt.next),
+							toTypeNr, i), 1));
+			}
+
+			else
+			{
+				Map<Integer,Integer> newPath = new HashMap<>(path);
+				newPath.put(idx, mediumNr);
+
+				// Copy the nr of types for non-senders/-recipients.
+				newNrsOfTypes = new HashMap<>(nrsOfTypes);
+
+				// Call the next medium.
+				medium.add(new LineOfCode(
+						String.format("medium%d(%s);",
+							nrOfMediums, argStr), 2));
+
+				// Unset the next types for the sender and reciever, since if
+				// there is no next we want to know.
+				nextTypes.remove(entry.fromStr);
+				nextTypes.remove(entry.toStr);
+
+				// Follow the branch.
+				Pair<Integer,Integer> res = buildCC0Templ(
+						entries, opt.next, roles, argStr,
+						newPath, idxTypes, newNrsOfTypes, nextTypes,
+						typedefs, choices, mediums, mediumDecs,
+						nrOfVars, nrOfMediums);
+
+				nrOfVars = res.left;
+				nrOfMediums = res.right;
+
+				// Update the nr of types for sender and recipient.
+				int newFromNrOfTypes = newNrsOfTypes.get(entry.fromStr);
+				nrsOfTypes.put(entry.fromStr, newFromNrOfTypes);
+				int newToNrOfTypes = newNrsOfTypes.get(entry.toStr);
+				nrsOfTypes.put(entry.toStr, newToNrOfTypes);
+
+				String fromCont = "";
+				if (nextTypes.containsKey(entry.fromStr))
+				{
+					fromCont = String.format("t%s_%d",
+							entry.fromStr, nextTypes.get(entry.fromStr));
+				}
+				String toCont = "";
+				if (nextTypes.containsKey(entry.toStr))
+				{
+					toCont = String.format("t%s_%d",
+							entry.toStr, nextTypes.get(entry.toStr));
+				}
+
+				choiceFrom.add(new LineOfCode(
+						String.format("<!%s;%s> l%s_%d_%d;",
+							opt.type, fromCont, entry.fromStr, fromTypeNr, i),
+						1));
+				choiceTo.add(new LineOfCode(
+						String.format("<?%s;%s> l%s_%d_%d;",
+							opt.type, toCont, entry.toStr, toTypeNr, i), 1));
+			}
+
+			medium.add(new LineOfCode(
+					"break;", 2));
+		}
+
+		medium.add(new LineOfCode("}", 1));
+		medium.add(new LineOfCode("}", 0));
+		choiceFrom.add(new LineOfCode("};", 0));
+		choiceTo.add(new LineOfCode("};", 0));
+
+		// Update with the last taken branch.
+		if (newNrsOfTypes != null)
+		{
+			nrsOfTypes.putAll(newNrsOfTypes);
+		}
+
+		nextTypes.put(entry.fromStr, fromTypeNr);
+		nextTypes.put(entry.toStr, toTypeNr);
+
+		String params = "";
+		for (int i = 0; i < roles.length; i ++)
+		{
+			if (i > 0)
+			{
+				params += ",";
+			}
+
+			// Only if something has happened to the role is the channel still
+			// available.
+			if (nrsOfTypesBeforeRec.get(roles[i]) != nrsOfTypes.get(roles[i]))
+			{
+				params += String.format("t%s_%d $%1$s",
+						roles[i], nrsOfTypesBeforeRec.get(roles[i]));
+			}
+			else
+			{
+				params += String.format("<> $%s", roles[i]);
+			}
+		}
+		medium.add(0, new LineOfCode(
+				String.format("void medium%d(%s) {", mediumNr, params), 0));
+		mediumDecs.put(mediumNr, new LineOfCode(
+				String.format("void medium%d(%s);", mediumNr, params), 0));
+
+		return new Pair<>(nrOfVars, nrOfMediums);
+	}
+
+	@Override
+	public String toDot()
+	{
+		return this.init.toDot();
+	}
+
+	@Override
+	public String toAut()
+	{
+		return this.init.toAut();
+	}
+
+	@Override
+	public String toString()
+	{
+		return this.init.toString();
+	}
+
+	public String toCanonProtocol()
+	{
+		List<CanonProtocolEntry> entries = new ArrayList<>();
+		int initIdx = buildCanonProtocol(this.init, entries, new HashMap<>());
+
+		return toCanonProtocol(entries, initIdx, new HashSet<>(), new HashSet<>());
+	}
+
+	public String toCC0Templ()
+	{
+		List<CanonProtocolEntry> entries = new ArrayList<>();
+		int initIdx = buildCanonProtocol(this.init, entries, new HashMap<>());
+		String[] roles = canonToRoleStrs(entries, initIdx, new HashSet<>())
+			.toArray(new String[0]);
+
+		Map<String,Map<Integer,LineOfCode>> typedefs
+			= new HashMap<>();
+		Map<String,Map<Integer,List<LineOfCode>>> choices
+			= new HashMap<>();
+		Map<String,Map<Integer,Integer>> idxTypes = new HashMap<>();
+		Map<String,Integer> nrsOfTypes = new HashMap<>();
+		String argStr = "";
+		for (int i = 0; i < roles.length; i ++)
+		{
+			typedefs.put(roles[i], new HashMap<>());
+			choices.put(roles[i], new HashMap<>());
+			idxTypes.put(roles[i], new HashMap<>());
+			nrsOfTypes.put(roles[i], 0);
+
+			if (i > 0)
+			{
+				argStr += ",";
+			}
+			argStr += String.format("$%s", roles[i]);
+		}
+
+		Map<Integer,List<LineOfCode>> mediums = new HashMap<>();
+		Map<Integer,LineOfCode> mediumDecs = new HashMap<>();
+
+		Pair<Integer,Integer> linesRes = buildCC0Templ(
+				entries, initIdx, roles, argStr,
+				new HashMap<>(), // empty path to start with.
+				idxTypes, nrsOfTypes,
+				new HashMap<>(), // we don't have to know this here.
+				typedefs, choices, mediums, mediumDecs, 0, 0);
+		int nrOfMediums = linesRes.right;
+
+		String out = "";
+
+		for (int i = 0; i < roles.length; i ++)
+		{
+			int nrOfTypes = nrsOfTypes.get(roles[i]);
+			Map<Integer,LineOfCode> roleTypedefs = typedefs.get(roles[i]);
+			Map<Integer,List<LineOfCode>> roleChoices = choices.get(roles[i]);
+
+			for (int j = nrOfTypes-1; j >= 0; j --)
+			{
+				out += roleTypedefs.get(j).toString() + "\n";
+			}
+			out += "\n";
+			for (int j = nrOfTypes-1; j >= 0; j --)
+			{
+				out += linesOfCodeToString(roleChoices.get(j));
+			}
+			out += "\n"
+				+ String.format("t%s_0 $%1$s %1$s() {\n}\n\n", roles[i]);
+		}
+
+		for (int i = 0; i < nrOfMediums ; i ++)
+		{
+			out += mediumDecs.get(i).toString() + "\n";
+		}
+		out += "\n";
+		for (int i = nrOfMediums-1; i >= 0; i --)
+		{
+			out += linesOfCodeToString(mediums.get(i)) + "\n";
+		}
+
+		out += "void medium(";
+		for (int i = 0; i < roles.length; i ++)
+		{
+			if (i > 0)
+			{
+				out += ", ";
+			}
+			out += String.format("t%s_0 $%1$s", roles[i]);
+		}
+		out += ") {\n"
+			+ "    medium0(" + argStr + ");\n"
+			+ "}\n\n";
+
+		out += "void " + this.proto.getLastElement() + "() {\n";
+		String chanArgs = "";
+		for (int i = 0; i < roles.length; i ++)
+		{
+			if (i > 0)
+			{
+				chanArgs += ", ";
+			}
+			out += String.format("	  t%s_0 $%1$s = %1$s();\n", roles[i]);
+			chanArgs += "$" + roles[i];
+		}
+		out += "	medium(" + chanArgs + ");\n"
+			+  "}";
+
+		return out;
+	}
+
+	private class CanonProtocolOption
+	{
+		public final String type;
+		public final int next;
+
+		public CanonProtocolOption(Payload type, int next)
+		{
+			if (type.toString(false) == "")
+			{
+				this.type = "unit";
+			}
+			else
+			{
+				this.type = type.toString(false);
+			}
+			this.next = next;
+		}
+	}
+
+	private class CanonProtocolEntry
+	{
+		public final Role from;
+		public final String fromStr;
+		public final Role to;
+		public final String toStr;
+		public List<CanonProtocolOption> options;
+
+		public CanonProtocolEntry(Role from, Role to)
+		{
+			this.from = from;
+			this.fromStr = from.toString();
+			this.to = to;
+			this.toStr = to.toString();
+			this.options = new ArrayList<>();
+		}
+	}
+
+	private class LineOfCode
+	{
+		public String code;
+		private int depth;
+		private static final int tabwidth = 4;
+
+		public LineOfCode(String code, int depth)
+		{
+			this.code = code;
+			this.depth = depth;
+		}
+
+		public void increaseDepth()
+		{
+			this.depth = this.depth + 1;
+		}
+
+		public String toString()
+		{
+			String out = "";
+			for (int i = 0; i < this.depth; i ++) {
+				for (int j = 0; j < this.tabwidth; j ++) {
+					out += " ";
+				}
+			}
+			out += this.code;
+			return out;
+		}
+	}
+
+	private String linesOfCodeToString(List<LineOfCode> lines)
+	{
+		String out = "";
+		for (int i = 0; i < lines.size(); i ++)
+		{
+			out += lines.get(i).toString() + "\n";
+		}
+		return out;
+	}
+
+	private class Pair<Tl, Tr>
+	{
+		public Tl left;
+		public Tr right;
+
+		public Pair(Tl left, Tr right)
+		{
+			this.left = left;
+			this.right = right;
+		}
 	}
 }
